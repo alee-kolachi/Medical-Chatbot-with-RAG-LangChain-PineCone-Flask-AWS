@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat UI — Example</title>
+  <style>
+    /* Basic reset */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html,body { height: 100%; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color: #0b1220; background: #f6f7fb; }
+
+    /* Layout */
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      height: 100dvh;
+      padding: 20px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: linear-gradient(180deg, #ffffff, #fbfdff);
+      border-radius: 12px;
+      border: 1px solid rgba(12,20,35,0.06);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 14px;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 6px 4px;
+      margin-bottom: 12px;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg,#6c5ce7,#00b4d8);
+      box-shadow: 0 2px 6px rgba(12,20,35,0.08);
+      display:flex; align-items:center; justify-content:center;
+      color: white; font-weight:700; font-size:16px;
+    }
+    .brand h1 { font-size: 15px; font-weight: 600; }
+
+    .conversations {
+      margin-top: 8px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .conv {
+      display:flex; gap:12px; align-items:center;
+      padding:10px; border-radius:8px; cursor:pointer;
+    }
+    .conv:hover { background: rgba(12,20,35,0.03); }
+    .conv.active { background: rgba(12,20,35,0.05); font-weight:600; }
+
+    .conv .avatar { width:36px; height:36px; border-radius:8px; background:#eef2ff; display:flex;align-items:center;justify-content:center; font-weight:700; color:#3b3f6b; }
+
+    .new-btn {
+      margin-top: 12px;
+      display:flex; gap:8px; align-items:center;
+      padding:10px; border-radius:8px; background:#eef2ff; color:#103a63; font-weight:600; cursor:pointer;
+      border: 1px dashed rgba(12,20,35,0.06);
+    }
+
+    /* Main chat area */
+    .chat {
+      display:flex; flex-direction:column; gap:12px;
+      height: 100%;
+    }
+    .chat-panel {
+      flex:1; background: linear-gradient(180deg,#ffffff,#fbfdff);
+      border-radius: 12px; padding: 18px; overflow:hidden; display:flex; flex-direction:column;
+      border: 1px solid rgba(12,20,35,0.06);
+    }
+
+    .messages {
+      flex:1; overflow:auto; padding-right: 8px; display:flex; flex-direction:column; gap:12px;
+    }
+
+    /* Message bubbles */
+    .msg-row { display:flex; gap:12px; align-items:flex-start; }
+    .msg-row.user { justify-content:flex-end; }
+    .avatar-small { width:36px; height:36px; border-radius:8px; background:#e6eefc; display:flex;align-items:center;justify-content:center; color:#153e5d; font-weight:700; flex:0 0 36px; }
+
+    .bubble {
+      max-width: 72%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height:1.45;
+      white-space:pre-wrap;
+      word-break:break-word;
+      box-shadow: 0 1px 0 rgba(12,20,35,0.02);
+    }
+    .bubble.ai {
+      background: #f3f6ff;
+      color: #081028;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+      border-bottom-left-radius: 12px;
+    }
+    .bubble.user {
+      background: linear-gradient(180deg,#0b6bff,#1560ff);
+      color: white;
+      border-top-right-radius: 6px;
+      border-top-left-radius: 12px;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+
+    .meta { font-size:12px; color:#6b7280; margin-top:6px; }
+
+    /* Input area */
+    .composer {
+      display:flex; gap:10px; align-items:flex-end; padding-top:10px;
+      border-top: 1px solid rgba(12,20,35,0.03);
+    }
+    form { display:flex; gap:10px; width:100%; align-items:flex-end; }
+    textarea {
+      resize:none;
+      min-height: 44px;
+      max-height: 220px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(12,20,35,0.06);
+      width:100%;
+      font-size: 14px;
+      line-height:1.4;
+      background: white;
+      box-shadow: none;
+    }
+    .ctrls { display:flex; gap:8px; align-items:center; }
+    .btn {
+      padding: 10px 14px; border-radius: 10px; cursor:pointer; user-select:none; border: none; font-weight:600;
+      background: #0b6bff; color: white;
+    }
+    .btn.secondary {
+      background: transparent; color: #0b1220; border: 1px solid rgba(12,20,35,0.06);
+    }
+
+    .typing {
+      display:inline-block;
+      padding:6px 10px;
+      border-radius: 999px;
+      background: rgba(12,20,35,0.04);
+      font-size:13px;
+      color:#273044;
+    }
+
+    /* Small screens */
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; padding:12px; gap:12px; }
+      .sidebar { display:none; }
+    }
+
+    /* Scrollbars (subtle) */
+    .conversations::-webkit-scrollbar,
+    .messages::-webkit-scrollbar { width:10px; }
+    .conversations::-webkit-scrollbar-thumb,
+    .messages::-webkit-scrollbar-thumb { background: rgba(12,20,35,0.04); border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Chat application">
+    <aside class="sidebar" aria-label="Conversations">
+      <div class="brand" aria-hidden="false">
+        <div class="logo">AI</div>
+        <h1>Assistant</h1>
+      </div>
+
+      <button class="new-btn" id="newConvBtn" title="Start a new conversation">+ New conversation</button>
+
+      <div class="conversations" id="conversations" role="list" aria-label="Recent conversations">
+      </div>
+
+      <div style="margin-top:auto;padding-top:12px;">
+        <small style="color:#6b7280">Local demo • No backend included</small>
+      </div>
+    </aside>
+
+    <main class="chat" aria-label="Chat area">
+      <div class="chat-panel" role="region" aria-label="Messages">
+        <div class="messages" id="messages" tabindex="0" aria-live="polite">
+          <div style="text-align:center; color:#6b7280; padding:28px 12px;">
+            <strong>Welcome</strong>
+            <div style="margin-top:8px; max-width:520px; margin-left:auto; margin-right:auto;">Type a message below and press <kbd>Enter</kbd> to send.</div>
+          </div>
+        </div>
+
+        <div class="composer" role="region" aria-label="Message composer">
+          <form id="composerForm" onsubmit="return false;">
+            <textarea id="input" placeholder="Send a message..." aria-label="Message input" rows="1"></textarea>
+            <div class="ctrls">
+              <button type="button" class="btn secondary" id="btnClear">Clear</button>
+              <button type="submit" class="btn" id="btnSend">Send</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ---------- Simple client-side chat UI logic ----------
+    const conversationsEl = document.getElementById('conversations');
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const newConvBtn = document.getElementById('newConvBtn');
+    const btnClear = document.getElementById('btnClear');
+    const composerForm = document.getElementById('composerForm');
+
+    let conversations = [];
+    let activeConversationId = null;
+
+    function createConversation(title = 'New chat') {
+      const id = 'c_' + Date.now();
+      const conv = { id, title, messages: [] };
+      conversations.unshift(conv);
+      activeConversationId = id;
+      renderConversations();
+      renderActiveConversation();
+      return conv;
+    }
+
+    function renderConversations() {
+      conversationsEl.innerHTML = '';
+      conversations.forEach((c) => {
+        const item = document.createElement('div');
+        item.className = 'conv' + (c.id === activeConversationId ? ' active' : '');
+        item.setAttribute('role','listitem');
+        item.onclick = () => { activeConversationId = c.id; renderConversations(); renderActiveConversation(); };
+        item.innerHTML = `
+          <div class="avatar">${c.title.charAt(0).toUpperCase()}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;">${escapeHtml(c.title)}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px;">${c.messages.length ? escapeHtml(truncate(c.messages[c.messages.length-1].text, 36)) : "No messages"}</div>
+          </div>
+        `;
+        conversationsEl.appendChild(item);
+      });
+    }
+
+    function renderActiveConversation() {
+      messagesEl.innerHTML = '';
+      const conv = conversations.find(c => c.id === activeConversationId);
+      if (!conv) {
+        messagesEl.innerHTML = `<div style="text-align:center;color:#6b7280;padding:28px 12px;"><strong>No conversation selected</strong></div>`;
+        return;
+      }
+
+      conv.messages.forEach(msg => {
+        appendMessageToDom(msg.role, msg.text, { id: msg.id, meta: msg.meta, fromHistory: true });
+      });
+
+      setTimeout(() => messagesEl.scrollTop = messagesEl.scrollHeight, 0);
+    }
+
+    function appendMessageToDom(role, text, opts = {}) {
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (role === 'user' ? 'user' : 'ai');
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar-small';
+      avatar.textContent = role === 'user' ? 'U' : 'AI';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'ai');
+      bubble.textContent = text;
+
+      if (role === 'user') {
+        row.appendChild(bubble);
+      } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+      }
+
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return row;
+    }
+
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+    function truncate(s, n) { return s.length > n ? s.slice(0,n-1) + '…' : s; }
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight) + 'px';
+    }
+    inputEl.addEventListener('input', () => autoResize(inputEl));
+    window.addEventListener('load', () => autoResize(inputEl));
+
+    newConvBtn.addEventListener('click', () => createConversation());
+    btnClear.addEventListener('click', () => {
+      if (!activeConversationId) return;
+      const conv = conversations.find(c => c.id === activeConversationId);
+      if (conv) { conv.messages = []; renderActiveConversation(); renderConversations(); }
+    });
+
+    composerForm.addEventListener('submit', (e) => { e.preventDefault(); sendCurrentInput(); });
+    inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCurrentInput(); } });
+
+    function sendCurrentInput() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+      if (!activeConversationId) createConversation();
+      const conv = conversations.find(c => c.id === activeConversationId);
+      const userMsg = { id: 'm_' + Date.now(), role: 'user', text, meta: { ts: Date.now() } };
+      conv.messages.push(userMsg);
+      renderConversations();
+      appendMessageToDom('user', text);
+      inputEl.value = '';
+      autoResize(inputEl);
+
+      // typing indicator
+      const typingRow = document.createElement('div');
+      typingRow.className = 'msg-row ai';
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar-small';
+      avatar.textContent = 'AI';
+      const typingBubble = document.createElement('div');
+      typingBubble.className = 'bubble ai typing';
+      typingBubble.textContent = 'Thinking';
+      typingRow.appendChild(avatar);
+      typingRow.appendChild(typingBubble);
+      messagesEl.appendChild(typingRow);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      // call API
+      sendMessageToAPI(conv, userMsg).then(aiText => {
+        if (typingRow && typingRow.parentNode === messagesEl) messagesEl.removeChild(typingRow);
+        const aiMsg = { id: 'm_' + (Date.now()+1), role: 'assistant', text: aiText, meta: { ts: Date.now() } };
+        conv.messages.push(aiMsg);
+        renderConversations();
+      }).catch(err => {
+        if (typingRow && typingRow.parentNode === messagesEl) messagesEl.removeChild(typingRow);
+        appendMessageToDom('assistant', 'Error: ' + String(err));
+        const aiMsg = { id: 'm_' + (Date.now()+1), role: 'assistant', text: 'Error: ' + String(err), meta: { ts: Date.now() } };
+        conv.messages.push(aiMsg);
+        renderConversations();
+      });
+    }
+
+    // Append assistant bubble + meta and details toggle
+    function appendAssistantRich(answerText, meta = {}) {
+      appendMessageToDom('assistant', answerText);
+
+      const metaContainer = document.createElement('div');
+      metaContainer.className = 'meta';
+      metaContainer.style.marginTop = '6px';
+      metaContainer.style.fontSize = '12px';
+      metaContainer.style.color = '#6b7280';
+
+      const parts = [];
+      if (meta.sources && meta.sources.length) {
+        const names = meta.sources.map(s => { try { return s.split('/').pop(); } catch (e) { return s; } });
+        parts.push("Sources: " + names.join(', '));
+      }
+      if (meta.confidence) parts.push("Confidence: " + meta.confidence);
+      if (parts.length) metaContainer.textContent = parts.join(" • ");
+      messagesEl.appendChild(metaContainer);
+
+      if (meta && Object.keys(meta).length) {
+        const toggle = document.createElement('button');
+        toggle.className = 'btn secondary';
+        toggle.style.marginTop = '8px';
+        toggle.textContent = 'Show details';
+        let detailsShown = false;
+        let detailsEl = null;
+
+        toggle.onclick = () => {
+          if (!detailsShown) {
+            detailsEl = document.createElement('pre');
+            detailsEl.style.whiteSpace = 'pre-wrap';
+            detailsEl.style.maxWidth = '72%';
+            detailsEl.style.padding = '8px';
+            detailsEl.style.borderRadius = '8px';
+            detailsEl.style.border = '1px solid rgba(12,20,35,0.06)';
+            detailsEl.style.background = '#fbfbfe';
+            const safeMeta = {
+              contacts: meta.contacts || [],
+              sources: meta.sources || [],
+              confidence: meta.confidence || null
+            };
+            detailsEl.textContent = JSON.stringify(safeMeta, null, 2);
+            messagesEl.appendChild(detailsEl);
+            toggle.textContent = 'Hide details';
+            detailsShown = true;
+          } else {
+            if (detailsEl) detailsEl.remove();
+            toggle.textContent = 'Show details';
+            detailsShown = false;
+          }
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        };
+
+        messagesEl.appendChild(toggle);
+      }
+
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+   // Append assistant bubble only with the human-readable answer string
+function appendAssistantAnswer(answerText) {
+  appendMessageToDom('assistant', answerText);
+}
+
+// Append a small "Show details" toggle (does NOT show sources automatically)
+function appendDetailsToggle(meta) {
+  // meta: { contacts: [], sources: [], confidence: 'medium', note: '...' }
+  // If there's nothing to show, skip.
+  if ((!meta.contacts || meta.contacts.length === 0) &&
+      (!meta.sources || meta.sources.length === 0) &&
+      !meta.confidence && !meta.note) {
+    return;
+  }
+
+  const metaContainer = document.createElement('div');
+  metaContainer.className = 'meta';
+  metaContainer.style.marginTop = '6px';
+  metaContainer.style.fontSize = '12px';
+  metaContainer.style.color = '#6b7280';
+  // show only confidence/note in-line; hide contacts/sources behind details
+  const parts = [];
+  if (meta.confidence) parts.push("Confidence: " + meta.confidence);
+  if (meta.note) parts.push(meta.note);
+  if (parts.length) metaContainer.textContent = parts.join(" • ");
+  messagesEl.appendChild(metaContainer);
+
+  const toggle = document.createElement('button');
+  toggle.className = 'btn secondary';
+  toggle.style.marginTop = '8px';
+  toggle.textContent = 'Show details';
+  let shown = false;
+  let detailsNode = null;
+
+  toggle.onclick = () => {
+    if (!shown) {
+      detailsNode = document.createElement('pre');
+      detailsNode.style.whiteSpace = 'pre-wrap';
+      detailsNode.style.maxWidth = '72%';
+      detailsNode.style.padding = '8px';
+      detailsNode.style.borderRadius = '8px';
+      detailsNode.style.border = '1px solid rgba(12,20,35,0.06)';
+      detailsNode.style.background = '#fbfbfe';
+
+      // Build safe, compact details object to show
+      const safe = {
+        contacts: meta.contacts || [],
+        // show sources as filenames only to avoid exposing local paths
+        sources: (meta.sources || []).map(s => {
+          try { return s.split('/').pop(); } catch (e) { return s; }
+        }),
+        confidence: meta.confidence || null,
+        note: meta.note || null
+      };
+      detailsNode.textContent = JSON.stringify(safe, null, 2);
+      messagesEl.appendChild(detailsNode);
+      toggle.textContent = 'Hide details';
+      shown = true;
+    } else {
+      if (detailsNode) detailsNode.remove();
+      toggle.textContent = 'Show details';
+      shown = false;
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  };
+
+  messagesEl.appendChild(toggle);
+}
+
+// sendMessageToAPI: posts msg and appends assistant results to UI
+function sendMessageToAPI(conv, userMsg) {
+  const payload = { msg: userMsg.text };
+
+  return fetch('/get', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'same-origin'
+  })
+  .then(async res => {
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Server error ${res.status}: ${text}`);
+    }
+    return res.json();
+  })
+  .then(data => {
+    if (!data || typeof data !== 'object') throw new Error('Invalid response from server');
+
+    // Use only data.answer for the visible bubble (must be a concise string)
+    const answerText = (typeof data.answer === 'string' && data.answer.trim())
+      ? data.answer.trim()
+      : "I couldn't find a concise answer in the documents.";
+
+    // Append visible answer
+    appendAssistantAnswer(answerText);
+
+    // Append details toggle (contacts/sources/confidence/note) — hidden by default
+    appendDetailsToggle({
+      contacts: data.contacts || [],
+      sources: data.sources || [],
+      confidence: data.confidence || null,
+      note: data.note || null
+    });
+
+    // Do NOT display data.explanation by default
+    return answerText;
+  });
+}
+
+
+    // bootstrap
+    createConversation('New chat');
+    messagesEl.focus();
+  </script>
+</body>
+</html>
